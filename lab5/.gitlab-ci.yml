@@ -1,0 +1,89 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_BUILDKIT: 1
+
+include:
+  - project: 'deusops-docker-utils'
+    file: '/templates/docker-build.yml'
+    ref: 'main'
+
+.rules:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - "react-frontend/**/*"
+        - "spring-backend/**/*"
+        - "mysql-database/**/*"
+        - "nginx/**/*"
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+build:frontend:
+  extends: .docker-build
+  stage: build
+  variables:
+    CONTEXT: "react-frontend"
+    DOCKERFILE: "react-frontend/Dockerfile"
+    IMAGE_NAME: "$CI_REGISTRY_IMAGE/frontend"
+    TAGS: "latest"
+  rules:
+    - !reference [.rules, rules]
+    - changes:
+        - "react-frontend/**/*"
+
+build:backend:
+  extends: .docker-build
+  stage: build
+  variables:
+    CONTEXT: "spring-backend"
+    DOCKERFILE: "spring-backend/Dockerfile"
+    IMAGE_NAME: "$CI_REGISTRY_IMAGE/backend"
+    TAGS: "latest"
+  rules:
+    - !reference [.rules, rules]
+    - changes:
+        - "spring-backend/**/*"
+        - "pom.xml"
+
+build:nginx:
+  extends: .docker-build
+  stage: build
+  variables:
+    CONTEXT: "nginx"
+    DOCKERFILE: "nginx/Dockerfile"
+    IMAGE_NAME: "$CI_REGISTRY_IMAGE/nginx"
+    TAGS: "latest"
+  rules:
+    - !reference [.rules, rules]
+    - changes:
+        - "nginx/**/*"
+
+build:database:
+  extends: .docker-build
+  stage: build
+  variables:
+    CONTEXT: "mysql-database"
+    DOCKERFILE: "mysql-database/Dockerfile"
+    IMAGE_NAME: "$CI_REGISTRY_IMAGE/database"
+    TAGS: "latest"
+  rules:
+    - !reference [.rules, rules]
+    - changes:
+        - "mysql-database/**/*"
+
+deploy:staging:
+  stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - echo "Deploying to staging environment"
+    - docker-compose -f docker-compose.yml up -d
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
