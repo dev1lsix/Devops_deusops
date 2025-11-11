@@ -1,0 +1,9 @@
+services:
+  nginx:
+    build: .
+    container_name: mynginx
+    volumes:
+      - ./static:/var/lib/nginx/html:ro
+    ports:
+      - "8080:80"
+    restart: unless-stopped
