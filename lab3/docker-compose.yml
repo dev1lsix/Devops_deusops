@@ -1,0 +1,7 @@
+services:
+  app:
+    image: go-web-app
+    build: ./go-web-app
+
+    ports:
+      - "8080:8080"
